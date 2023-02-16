@@ -1,7 +1,7 @@
 /* eslint-disable no-await-in-loop */
 module.exports.dependencies = ['axios@0.27.2', '@cospired/i18n-iso-languages', 'path'];
 const details = () => ({
-  id: 'Tdarr_Plugin_henk_Keep_Native_Lang_Plus_Eng',
+  id: 'Tdarr_Plugin_henk_Keep_Native_Lang_Plus_Eng_v1.0',
   Stage: 'Pre-processing',
   Name: 'Remove all langs except native and English',
   Type: 'Audio',
