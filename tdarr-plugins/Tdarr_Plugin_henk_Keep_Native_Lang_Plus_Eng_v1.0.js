@@ -230,6 +230,15 @@ const plugin = async (file, librarySettings, inputs, otherArguments) => {
   let radarrResult = null;
   let sonarrResult = null;
   let tmdbResult = null;
+  const langs = file.ffProbeData.streams
+    .filter((stream) => stream.codec_type.toLowerCase() === 'audio')
+    .flatMap((stream) => stream.tags?.language);
+
+  // End plugin if only a single language is found
+  if (new Set(langs).size === 1) {
+    response.infoLog += '☑File only has a single audio language or all are missing.\n';
+    return response;
+  }
 
   if (inputs.priority) {
     if (inputs.priority === 'sonarr') {
