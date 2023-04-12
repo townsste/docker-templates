@@ -7,39 +7,72 @@ const details = () => ({
   Name: "Add subtitles to MKV files",
   Type: "Subtitle",
   Operation: 'Transcode',
-  Description: `This plugin will add srt files to an mkv file and then delete the subtitles that are in your media directory along side the video file.\\n
-	Sutitles can be named according to the ISO 639-1 (en) or ISO 639-1 (eng) language code.\\n
+  Description: `This plugin will add srt and vobsub (.sub & .idx) files to an mkv file and then rename and 
+    optionally delete the subtitles that are in your media directory along side the video file.\\n
+	Sutitles can be named according to the ISO 639-1 (en) or ISO 639-2 (eng) language code.\\n
 	Supports forced and SDH naming.\\n
 	A subtitle can look like: [mkv file name]eng.forced.srt, [mkv file name]en.srt, [mkv file name]en.sdh.srt.\\n`,
   Version: "1.0",
   Tags: "pre-processing,ffmpeg,subtitle only,configurable",
-  Inputs: [
-  {
-      name: "subtitle_language",
+  Inputs: [/*{
+      name: "subtitle_language_temp",
       type: 'string',
       defaultValue:'eng',
       inputUI: {
         type: 'text',
       },
-      tooltip: `Enter subtitle language you would like to add in ISO 639-2 format .\\n Default: eng\\nExample:\\neng`,
-    },
+      tooltip: `Enter subtitle language you would like to add in ISO 639-1 or 639-2 format .\\n Default: eng\\nExample:\\neng`,
+    },*/
+  {
+	  name: "subtitle_language",
+      type: 'string',
+      defaultValue:'eng',
+      inputUI: {
+          type: 'dropdown',
+          options: [
+            'aar','abk','ave','afr','aka','amh','arg','ara','asm','ava','aym','aze','bak','bel','bul','bih',
+			'bis','bam','ben','bod','bre','bos','cat','che','cha','cos','cre','ces','chu','chv','cym','dan',
+			'deu','div','dzo','ewe','ell','eng','epo','spa','est','eus','fas','ful','fin','fij','fao','fra',
+			'fry','gle','gla','glg','grn','guj','glv','hau','heb','hin','hmo','hrv','hat','hun','hye','her',
+			'ina','ind','ile','ibo','iii','ipk','ido','isl','ita','iku','jpn','jav','kat','kon','kik','kua',
+			'kaz','kal','khm','kan','kor','kau','kas','kur','kom','cor','kir','lat','ltz','lug','lim','lin',
+			'lao','lit','lub','lav','mlg','mah','mri','mkd','mal','mon','mar','msa','mlt','mya','nau','nob',
+			'nde','nep','ndo','nld','nno','nor','nbl','nav','nya','oci','oji','orm','ori','oss','pan','pli',
+			'pol','pus','por','que','roh','run','ron','rus','kin','san','srd','snd','sme','sag','sin','slk',
+			'slv','smo','sna','som','sqi','srp','ssw','sot','sun','swe','swa','tam','tel','tgk','tha','tir',
+			'tuk','tgl','tsn','ton','tur','tso','tat','twi','tah','uig','ukr','urd','uzb','ven','vie','vol',
+			'wln','wol','xho','yid','yor','zha','zho','zul',
+
+          ],
+        },
+      tooltip: `Enter subtitle language you would like to add.\\n Default: eng\\nExample:\\neng`,
+  },
+	
+  {
+	  name: "subtitle_remove",
+      type: 'boolean',
+      defaultValue:'false',
+      inputUI: {
+          type: 'dropdown',
+          options: [
+            'false',
+            'true',
+          ],
+        },
+      tooltip: `Select whether to remove or keep along side subtitles`,
+  },
   ],
 });
 const response = {
     processFile: false,
 	container: ".mkv",
-	preset: ',',
+	preset: '<io>',
 	presetImport: '',
 	presetMeta: '',
     handBrakeMode: false,
     FFmpegMode: false,
     reQueueAfter: false,
     infoLog: `Searching new subtitles... \n`,
-  };
-  
-const processStreams = (result, file) => {
-  // eslint-disable-next-line import/no-unresolved
-  const languages = require('@cospired/i18n-iso-languages');
   };
 
 // eslint-disable-next-line no-unused-vars
@@ -64,21 +97,58 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   
   // Convert to ISO 639-1 to 639-2
   const language = inputs.subtitle_language.toLowerCase();
-  // If the original language is Chinese 'chi' iso-language expects 'zh'.
-  const langISO1 = inputs.subtitle_language.toLowerCase() === 'chi' ? 'zh' : languages.alpha3TToAlpha2(language);
-  var langISO = language;
+  let langISO = null;
+  const langISO1 = languages.alpha3TToAlpha2(language);
+  const langISO2 = language;
+  
+  /*
+  let langISO1 = null;
+  let langISO2 = null;
+  
+  // Check valid code
+  if (languages.isValid(language)){
+	  if (language.trim().length == 2){
+		langISO1 = language;
+		langISO2 = languages.alpha2ToAlpha3T(language);
+	  }
+	  else {
+		langISO2 = language;
+		// If the original language is Chinese 'chi' iso-language expects 'zh'.
+	    langISO1 = inputs.subtitle_language.toLowerCase() === 'chi' ? 'zh' : languages.alpha3TToAlpha2(language);
+	  }   
+  } else {
+	response.infoLog += '☒Cancelling plugin. Plugin language not a valid code.\n';
+    return response;
+  }
+  */
+  
+  // Check availiable subs
+  const isForced = (fs.existsSync(`${mediaDir}/${filename}.${langISO1}.forced.srt`)) ? true : 
+				   (fs.existsSync(`${mediaDir}/${filename}.${langISO2}.forced.srt`)) ? true : 
+				   false;
+  const isNormal = (fs.existsSync(`${mediaDir}/${filename}.${langISO1}.srt`)) ? true : 
+				   (fs.existsSync(`${mediaDir}/${filename}.${langISO2}.srt`)) ? true :
+				   false;
+  const isSDH = (fs.existsSync(`${mediaDir}/${filename}.${langISO1}.sdh.srt`)) ? true : 
+				(fs.existsSync(`${mediaDir}/${filename}.${langISO2}.sdh.srt`)) ? true :
+				false;
+  const isVobsub = (fs.existsSync(`${mediaDir}/${filename}.sub`) && fs.existsSync(`${mediaDir}/${filename}.idx`)) ? true : 
+				   false;
 
-  // check .mkv
+  /*				   
+  // Check if subs found
+  if (!isForced && !isNormal && !isSDH && !isVobsub) {
+	response.infoLog += '☒Cancelling plugin. No valid subtitles found.\n';
+    return response;
+  }
+ */
+
+  // Check if in .mkv
   if (path.parse(file?.ffProbeData?.format?.filename).ext !== '.mkv') {
     response.infoLog += '☒Cancelling plugin. File is not mkv.\n';
     return response;
   }
-  
-  if (!languages.getName(language, "en") || language.trim().length !== 3) {
-    response.infoLog += '☒Cancelling plugin. Plugin language not in ISO 639-2 or not a valid code.\n';
-    return response;
-  }
-  
+ 
   // find first subtitle stream location
   while (found_subtitle_stream == 0 && sub_location < file.ffProbeData.streams.length) {
     if (file.ffProbeData.streams[sub_location].codec_type.toLowerCase() == "subtitle") {
@@ -87,77 +157,136 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       sub_location++;
     }
   }
-  
-  // Check if file language is in ISO 639-1
-  if (fs.existsSync(`${mediaDir}/${filename}.${langISO1}.forced.srt`) || 
-	  fs.existsSync(`${mediaDir}/${filename}.${langISO1}.srt`) || 
-	  fs.existsSync(`${mediaDir}/${filename}.${langISO1}.sdh.srt`) ||
-	  fs.existsSync(`${mediaDir}/${filename}.merge.${langISO1}.forced.srt`) || 
-	  fs.existsSync(`${mediaDir}/${filename}.merge.${langISO1}.srt`) || 
-	  fs.existsSync(`${mediaDir}/${filename}.merge.${langISO1}.sdh.srt`)){
-	  langISO = langISO1;
-  }
-  
-  // if Forced
-  if (fs.existsSync(`${mediaDir}/${filename}.${langISO}.forced.srt`)){
+
+  // FORCED SRT
+  if (isForced){
 	response.infoLog += `☑Found Forced Sub \n`;
+	langISO = (fs.existsSync(`${mediaDir}/${filename}.${langISO1}.forced.srt`)) ? langISO1 : 
+			  (fs.existsSync(`${mediaDir}/${filename}.${langISO2}.forced.srt`)) ? langISO2 : 
+			  null;
 	response.presetImport += ` -sub_charenc "UTF-8" -f srt -i "${mediaDir}/${filename}.merge.${langISO}.forced.srt"`;
 	response.presetMeta += ` -metadata:s:s:${new_subs} title=FORCED -disposition:s:${new_subs} forced -metadata:s:s:${new_subs} language=${language} `;
 	new_subs++;
   // append
-	fs.renameSync(`${mediaDir}/${filename}.${langISO}.forced.srt`, `${mediaDir}/${filename}.merge.${langISO}.forced.srt`, {
+    try {
+	  fs.renameSync(`${mediaDir}/${filename}.${langISO}.forced.srt`, `${mediaDir}/${filename}.merge.${langISO}.forced.srt`, {
         overwrite: true,
       });
+    } catch (err) {
+      // Error
+	  console.log(err);
+    }
   }
   // remove sub
-  else if (fs.existsSync(`${mediaDir}/${filename}.merge.${langISO}.forced.srt`)){
+  else if ((fs.existsSync(`${mediaDir}/${filename}.merge.${langISO1}.forced.srt`) || 
+		    fs.existsSync(`${mediaDir}/${filename}.merge.${langISO2}.forced.srt`)) && 
+			inputs.subtitle_remove){
+      response.infoLog += `☑Removing Forced Sub \n`;
     try {
-	  response.infoLog += `☑Removing Forced Sub \n`;
-	  fs.unlinkSync(`${mediaDir}/${filename}.merge.${langISO}.forced.srt`);
+	  fs.unlinkSync(`${mediaDir}/${filename}.merge.${langISO1}.forced.srt`);
+    } catch (err) {
+      // Error
+	  console.log(err);
+    }
+	try {
+	  fs.unlinkSync(`${mediaDir}/${filename}.merge.${langISO2}.forced.srt`);
     } catch (err) {
       // Error
 	  console.log(err);
     }
   }
   
-  // if Eng
-  if (fs.existsSync(`${mediaDir}/${filename}.${langISO}.srt`)){
+  // NORMAL SRT
+  if (isNormal){
 	response.infoLog += `☑Found Sub \n`;
+	langISO = (fs.existsSync(`${mediaDir}/${filename}.${langISO1}.srt`)) ? langISO1 : 
+			  (fs.existsSync(`${mediaDir}/${filename}.${langISO2}.srt`)) ? langISO2 : 
+			  null;
 	response.presetImport += ` -sub_charenc "UTF-8" -f srt -i "${mediaDir}/${filename}.merge.${langISO}.srt"`;
 	response.presetMeta += ` -metadata:s:s:${new_subs} title=${language.toUpperCase()} -metadata:s:s:${new_subs} language=${language} `;
 	new_subs++;
   // append
-	fs.renameSync(`${mediaDir}/${filename}.${langISO}.srt`, `${mediaDir}/${filename}.merge.${langISO}.srt`, {
+    try {
+	  fs.renameSync(`${mediaDir}/${filename}.${langISO}.srt`, `${mediaDir}/${filename}.merge.${langISO}.srt`, {
         overwrite: true,
       });
+    } catch (err) {
+      // Error
+	  console.log(err);
+    }
   }
   // remove sub
-  else if (fs.existsSync(`${mediaDir}/${filename}.merge.${langISO}.srt`)){
-    try {
+  else if ((fs.existsSync(`${mediaDir}/${filename}.merge.${langISO1}.srt`) || 
+		    fs.existsSync(`${mediaDir}/${filename}.merge.${langISO2}.srt`)) && 
+			inputs.subtitle_remove){
 	  response.infoLog += `☑Removing Sub \n`;
-	  fs.unlinkSync(`${mediaDir}/${filename}.merge.${langISO}.srt`);
+    try {
+	  fs.unlinkSync(`${mediaDir}/${filename}.merge.${langISO1}.srt`);
+    } catch (err) {
+      // Error
+	  console.log(err);
+    }
+	try {
+	  fs.unlinkSync(`${mediaDir}/${filename}.merge.${langISO2}.srt`);
+    } catch (err) {
+      // Error
+	  console.log(err);
+    }
+  }
+
+  // SDH SRT
+  if (isSDH){
+	response.infoLog += `☑Found SDH Sub \n`;
+	langISO = (fs.existsSync(`${mediaDir}/${filename}.${langISO1}.sdh.srt`)) ? langISO1 : 
+			  (fs.existsSync(`${mediaDir}/${filename}.${langISO2}.sdh.srt`)) ? langISO2 : 
+			  null;
+	response.presetImport += ` -sub_charenc "UTF-8" -f srt -i "${mediaDir}/${filename}.merge.${langISO}.sdh.srt"`;
+	response.presetMeta += ` -metadata:s:s:${new_subs} title=SDH -disposition:s:${new_subs} hearing_impaired -metadata:s:s:${new_subs} language=${language} `;
+	new_subs++;
+  // append
+    try {
+	  fs.renameSync(`${mediaDir}/${filename}.${langISO}.sdh.srt`, `${mediaDir}/${filename}.merge.${langISO}.sdh.srt`, {
+        overwrite: true,
+      });
+    } catch (err) {
+      // Error
+	  console.log(err);
+    }
+  }
+  // remove sub
+  else if ((fs.existsSync(`${mediaDir}/${filename}.merge.${langISO1}.sdh.srt`) || 
+		    fs.existsSync(`${mediaDir}/${filename}.merge.${langISO2}.sdh.srt`)) && 
+			inputs.subtitle_remove){
+      response.infoLog += `☑Removing SDH Sub \n`;
+    try {
+	  fs.unlinkSync(`${mediaDir}/${filename}.merge.${langISO1}.sdh.srt`);
+    } catch (err) {
+      // Error
+	  console.log(err);
+    }
+	try {
+	  fs.unlinkSync(`${mediaDir}/${filename}.merge.${langISO2}.sdh.srt`);
     } catch (err) {
       // Error
 	  console.log(err);
     }
   }
   
-  // if SDH
-  if (fs.existsSync(`${mediaDir}/${filename}.${langISO}.sdh.srt`)){
-	response.infoLog += `☑Found SDH Sub \n`;
-	response.presetImport += ` -sub_charenc "UTF-8" -f srt -i "${mediaDir}/${filename}.merge.${langISO}.sdh.srt"`;
-	response.presetMeta += ` -metadata:s:s:${new_subs} title=SDH -disposition:s:${new_subs} hearing_impaired -metadata:s:s:${new_subs} language=${language} `;
+  // VOBSUB
+  if (fs.existsSync(`${mediaDir}/${filename}.sub`) && fs.existsSync(`${mediaDir}/${filename}.idx`)) {
+	response.infoLog += `☑Found vobsub Sub \n`;
+	response.presetImport += ` -f vobsub -sub_name "${mediaDir}/${filename}.merge.sub" -i "${mediaDir}/${filename}.merge.idx"`;
 	new_subs++;
   // append
-	fs.renameSync(`${mediaDir}/${filename}.${langISO}.sdh.srt`, `${mediaDir}/${filename}.merge.${langISO}.sdh.srt`, {
-        overwrite: true,
-      });
+	fs.renameSync(`${mediaDir}/${filename}.sub`, `${mediaDir}/${filename}.merge.sub`);
+	fs.renameSync(`${mediaDir}/${filename}.idx`, `${mediaDir}/${filename}.merge.idx`);
   }
   // remove sub
-  else if (fs.existsSync(`${mediaDir}/${filename}.merge.${langISO}.sdh.srt`)){
-    try {
-	  response.infoLog += `☑Removing SDH Sub \n`;
-	  fs.unlinkSync(`${mediaDir}/${filename}.merge.${langISO}.sdh.srt`);
+  else if (fs.existsSync(`${mediaDir}/${filename}.merge.sub`) && fs.existsSync(`${mediaDir}/${filename}.merge.idx`) && inputs.subtitle_remove){
+      response.infoLog += `☑Removing vobsub Sub Files \n`;
+	try {
+	  fs.unlinkSync(`${mediaDir}/${filename}.merge.sub`);
+	  fs.unlinkSync(`${mediaDir}/${filename}.merge.idx`);
     } catch (err) {
       // Error
 	  console.log(err);
