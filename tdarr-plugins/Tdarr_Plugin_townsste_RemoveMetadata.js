@@ -5,7 +5,7 @@ const details = () => ({
   Type: 'Video',
   Operation: 'Transcode',
   Description: 'This plugin removes title metadata from video/audio/subtitles.\n\n -- Based off of Migz2CleanTitle. -- \n\n ----- Also Removes more Titles, COMMENT, Copyright, & Audio Name...  RENAME SUBTITLES ----- \n\n',
-  Version: '1.9',
+  Version: '2.0',
   Tags: 'pre-processing,ffmpeg,configurable',
   Inputs: [{
     name: 'clean_audio',
@@ -26,24 +26,6 @@ const details = () => ({
                false`,
   },
   {
-    name: 'clean_subtitles',
-    type: 'boolean',
-    defaultValue: false,
-    inputUI: {
-      type: 'dropdown',
-      options: [
-        'false',
-        'true',
-      ],
-    },
-    tooltip: `Specify if subtitle titles should be checked & cleaned.
-               \\nExample:\\n
-               true
-
-               \\nExample:\\n
-               false`,
-  },
-  {
 	name: 'clean_audio_language',
     type: 'boolean',
     defaultValue: false,
@@ -55,6 +37,24 @@ const details = () => ({
       ],
     },
     tooltip: `Specify if audio language tag should be checked & cleaned.  Optional. 
+               \\nExample:\\n
+               true
+
+               \\nExample:\\n
+               false`,
+  },
+  {
+    name: 'clean_subtitles',
+    type: 'boolean',
+    defaultValue: false,
+    inputUI: {
+      type: 'dropdown',
+      options: [
+        'false',
+        'true',
+      ],
+    },
+    tooltip: `Specify if subtitle titles should be checked & cleaned.
                \\nExample:\\n
                true
 
@@ -130,7 +130,6 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     }
   }
   
-  
   // Go through each stream in the file.
   for (let i = 0; i < file.ffProbeData.streams.length; i += 1) {
     // Check if stream is a video.
@@ -148,6 +147,19 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
           ffmpegCommandInsert += ` -metadata:s:v:${videoIdx} title= `;
           convert = true;
         }
+		// Check if stream language is not empty, if it's not empty set to "".
+        if (
+          !(
+            typeof file.ffProbeData.streams[i].tags.language === 'undefined'
+            || file.ffProbeData.streams[i].tags.language === '""'
+            || file.ffProbeData.streams[i].tags.language === ''
+          )
+        ) {
+          response.infoLog += `☒Video stream language is not empty. Removing title (${file.ffProbeData.streams[i].tags.language}) from stream ${i} \n`;
+          ffmpegCommandInsert += ` -metadata:s:v:${videoIdx} language= `;
+          convert = true;
+        }
+		// Check if stream comment is not empty, if it's not empty set to "".
 		if (
           !(
             typeof file.ffProbeData.streams[i].tags.comment === 'undefined'
