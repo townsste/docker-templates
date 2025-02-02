@@ -4,7 +4,7 @@ const details = () => ({
   Name: 'Remove Metadata',
   Type: 'Video',
   Operation: 'Transcode',
-  Description: 'This plugin removes title metadata from video/audio/subtitles.\n\n -- Based off of Migz2CleanTitle. -- \n\n ----- Also Removes more Titles, COMMENT, Copyright, & Audio Name...  RENAME SUBTITLES ----- \n\n',
+  Description: 'This plugin removes metadata from video/audio/subtitles.\n\n -- Based off of Migz2CleanTitle. -- \n\n ----- Also Removes more Titles, COMMENT, Copyright, & Lanuage Tags...  RENAME SUBTITLES ----- \n\n',
   Version: '2.0',
   Tags: 'pre-processing,ffmpeg,configurable',
   Inputs: [{
@@ -55,6 +55,7 @@ const details = () => ({
       ],
     },
     tooltip: `Specify if subtitle titles should be checked & cleaned.
+			   \\nTries to rename subtitles to SDH, FORCED, & ENG\\n
                \\nExample:\\n
                true
 
