@@ -17,7 +17,7 @@ const details = () => ({
     {
       name: 'api_key',
       type: 'string',
-      defaultValue: '',
+      defaultValue: '671382f9c71f9a6bf7fcd2c9d8119828',
       inputUI: {
         type: 'text',
       },
@@ -144,8 +144,18 @@ const plugin = async (file, librarySettings, inputs, otherArguments) => {
     .flatMap((stream) => stream.tags?.language);
 
   if (new Set(langs).size === 1) {
-    response.infoLog += '☑File only has a single audio language or all are missing.\n';
-    return response;
+	for (let i = 0; i < file.ffProbeData.streams.length; i += 1) {
+		if (
+			   !(
+				typeof file.ffProbeData.streams[i].tags.language === 'undefined'
+				|| file.ffProbeData.streams[i].tags.language === '""'
+				|| file.ffProbeData.streams[i].tags.language === ''
+			  )
+			){
+				response.infoLog += '☑File only has a single audio language or all are missing.\n';
+				return response;
+			  }
+	}
   }
   
   let imdbId;
